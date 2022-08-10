@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <getopt.h>
 #define max(a, b) (a>b?a:b)
 #define LINE_LEN 32
 typedef struct Pixel_Data {
@@ -22,9 +23,9 @@ int read_ppm_color_bitmap(char* filename, PPM_Image_Buffer* buf) {
 	char line[10];
 	fgets(line, 10-1, file);
 	fscanf(file, "%d %d", &width, &height);
-	printf("Getting width and height\n");
+	//printf("Getting width and height\n");
 
-	printf("Width = %d, Height = %d\n", width, height);
+	//printf("Width = %d, Height = %d\n", width, height);
 	fscanf(file, "%d", &i);
 	
 	buf->rown = height;
@@ -40,7 +41,7 @@ int read_ppm_color_bitmap(char* filename, PPM_Image_Buffer* buf) {
 		buf->data[i].green = g;
 		buf->data[i].blue = b;
 		
-		printf("uno %d (%d, %d, %d)\n", i, r, g, b);
+		//printf("uno %d (%d, %d, %d)\n", i, r, g, b);
 		i++;
 	}
 	fclose(file);
@@ -89,15 +90,59 @@ void convert_to_grayscale(PPM_Image_Buffer* image) {
 	}
 }
 
+int strhas(char* str, char c) {
+	for(int i=0; str[i] != '\0'; i++) {
+		if(str[i] == c) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 int main(int argc, char* argv[]) {
-	int r;
-	char c;
-	while(c = getopt(argc, argv, ))
+	int r, mask;
+	char c, m;
+	if(argc < 4) {
+		fprintf(stderr, "Usage: %s <input-image> <output-image> [-f <mask>]/[-g]\n", argv[0]);
+		return -1;
+	}
+	
 	PPM_Image_Buffer image;
-	r = read_ppm_color_bitmap("dainov.ppm", &image);
-	//filter_color_component(&image, 1);
-	convert_to_grayscale(&image);
-	write_ppm_color_bitmap("dainov1.ppm", &image);
+	r = read_ppm_color_bitmap(argv[1], &image);
+	if(r < 0) { 
+		return -1;
+	}
+	
+	while((c = getopt(argc, argv, "gf:")) != -1) {
+		switch(c) {
+			case 'g':
+				m = 'g';
+				break;
+			case 'f':
+				printf("-f: %s\n", optarg);
+				mask = (strhas(optarg, 'r') ? 1 : 0) | (strhas(optarg, 'g') ? 2 : 0) | (strhas(optarg, 'b') ? 4 : 0);
+				printf("mask: %d\n", mask);
+				m = 'f';
+				break;
+			default:
+				fprintf(stderr, "Usage: %s <input-image> <output-image> [-f <mask>]/[-g]\n", argv[0]);
+		}
+	}
+	
+	for(int i=0; i < argc; i++) {
+		printf("%s\n", argv[i]);
+	}
+	
+	if(m == 'f') {
+		filter_color_component(&image, mask);
+	}
+	else if(m == 'g') {
+		convert_to_grayscale(&image);
+	}
+	r = write_ppm_color_bitmap(argv[argc-1], &image);
+	if(r < 0) {
+		return -1;
+	}
 	free(image.data);
-	return r;
+	return 0;
 }
